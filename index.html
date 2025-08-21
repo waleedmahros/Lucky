@@ -138,7 +138,6 @@
         .win-text .winner-team { font-family: 'Lilita One', cursive; display: block; font-size: clamp(4rem, 15vw, 6rem); line-height: 1.1; letter-spacing: 4px; color: #ffd700; text-shadow: 0 0 10px #ffffff, 0 0 20px #ffd700, 0 0 30px #ffd700, 0 0 40px #ffd700, 0 5px 10px rgba(0,0,0,0.5); }
         .win-instruction { font-family: 'Cairo', sans-serif; font-size: clamp(18px, 5vw, 24px); color: #ffffff; background: rgba(0,0,0,0.3); padding: 15px 25px; border-radius: 50px; border: 2px solid rgba(255,255,255,0.3); backdrop-filter: blur(10px); cursor: pointer; transition: all 0.3s ease; margin-top: 30px; }
         
-        /* --- CSS for Win Screen Celebration --- */
         .firework { position: absolute; width: 6px; height: 6px; border-radius: 50%; opacity: 1; animation: firework-explode 1.5s cubic-bezier(0.1, 1, 0.4, 1) forwards; }
         @keyframes firework-explode { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(40); opacity: 0; } }
     </style>
@@ -306,7 +305,6 @@
         }
         
         function drawWheel() {
-                function drawWheel() {
             spinWheel.innerHTML = '';
             const segmentAngle = 360 / wheelChoices.length;
             const colors = ['#00a8e8', '#ff6f61', '#90ee90', '#f7b733', '#87ceeb', '#ff8c94', '#a0e6a0', '#ffd700'];
@@ -322,7 +320,6 @@
                 
                 const textSpan = document.createElement('span');
                 textSpan.textContent = choice;
-                // Center the text properly within the segment
                 textSpan.style.transform = `rotate(${segmentAngle / 2}deg) translateY(-110%)`;
 
                 segment.appendChild(textSpan);
@@ -533,25 +530,14 @@
         }
 
         async function checkAndTriggerEvent(player) {
-                    async function checkAndTriggerEvent(player) {
             const currentPos = playerPositions[player];
             
-            // --- استبدل سطر console.log بهذا السطر ---
             alert(`Player at position: ${currentPos}\n\nEvent details: ${JSON.stringify(squareEvents[currentPos])}`);
-            // -----------------------------------------
 
             if (squareEvents[currentPos]) {
                 const eventToTrigger = squareEvents[currentPos];
                 delete squareEvents[currentPos]; 
                 updateAllVisuals();
-                await triggerEvent(player, eventToTrigger);
-            }
-        }
-
-            const currentPos = playerPositions[player];
-            if (squareEvents[currentPos]) {
-                const eventToTrigger = squareEvents[currentPos];
-                delete squareEvents[currentPos]; updateAllVisuals();
                 await triggerEvent(player, eventToTrigger);
             }
         }
@@ -574,7 +560,7 @@
                 await checkKnockBack(activePlayer);
                 await checkAndTriggerEvent(activePlayer);
             } finally {
-                if (!isActionInProgress) return; // if an event took over, it will handle the flag
+                if (!isActionInProgress) return; 
                 isActionInProgress = false;
             }
         }
@@ -669,36 +655,8 @@
             }
         });
 
-                spinWheel.addEventListener('click', function spinHandler() {
+        spinWheel.addEventListener('click', function spinHandler() {
             if (isActionInProgress || !spinWheel.classList.contains('ready-to-spin')) return;
             playSound('wheel_spin');
             spinWheel.classList.remove('ready-to-spin');
-            const targetIndex = Math.floor(Math.random() * wheelChoices.length);
-            const segmentAngle = 360 / wheelChoices.length;
-            const stopAngle = (targetIndex * segmentAngle) + (segmentAngle / 2);
-            currentRotation += (360 * 5) - (currentRotation % 360) - stopAngle;
-            spinWheel.style.transform = `rotate(${currentRotation}deg)`;
-            
-            spinWheel.addEventListener('transitionend', async () => {
-                // --- FIX START ---
-                sounds.wheel_spin.pause(); // Stop the spinning sound
-                sounds.wheel_spin.currentTime = 0; // Reset it
-                // --- FIX END ---
-                playSound('wheel_stop');
-                const resultValue = wheelChoices[targetIndex];
-                wheelModal.style.display = 'none';
-                await applyWheelResult(resultValue);
-            }, { once: true });
-        });
-
-        
-        undoBtn.addEventListener('click', restoreState);
-        resultPopup.addEventListener('click', () => { if(!isActionInProgress) { playSound('popup_hide'); resultPopup.style.display = 'none'; } });
-        winScreen.addEventListener('click', () => { playSound('ui_click'); winScreen.style.display = 'none'; winScreen.querySelectorAll('.firework').forEach(el => el.remove()); setupGame(); });
-        document.querySelectorAll('.admin-btn:not(#admin-undo-btn)').forEach(btn => btn.addEventListener('click', handleAdminAction));
-
-        setupGame();
-    });
-    </script>
-</body>
-</html>
+            const targetIndex = Math.floor(Math.random() *
