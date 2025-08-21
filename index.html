@@ -308,25 +308,20 @@
             spinWheel.innerHTML = '';
             const segmentAngle = 360 / wheelChoices.length;
             const colors = ['#00a8e8', '#ff6f61', '#90ee90', '#f7b733', '#87ceeb', '#ff8c94', '#a0e6a0', '#ffd700'];
-            
             let gradientParts = [];
             wheelChoices.forEach((choice, i) => {
                 const startAngle = i * segmentAngle;
                 const endAngle = (i + 1) * segmentAngle;
                 gradientParts.push(`${colors[i % colors.length]} ${startAngle}deg ${endAngle}deg`);
-
                 const segment = document.createElement('div');
                 segment.className = 'wheel-segment';
-                
                 const textSpan = document.createElement('span');
                 textSpan.textContent = choice;
                 textSpan.style.transform = `rotate(${segmentAngle / 2}deg) translateY(-110%)`;
-
                 segment.appendChild(textSpan);
                 segment.style.transform = `rotate(${startAngle}deg)`;
                 spinWheel.appendChild(segment);
             });
-
             spinWheel.style.background = `conic-gradient(${gradientParts.join(', ')})`;
         }
             
@@ -341,7 +336,10 @@
             resultPopup.style.display = 'flex';
         }
 
-        function promptToSpin() { wheelModal.style.display = 'flex'; spinWheel.classList.add('ready-to-spin');}
+        function promptToSpin() {
+            wheelModal.style.display = 'flex';
+            spinWheel.classList.add('ready-to-spin');
+        }
 
         function createBoard() {
             board.innerHTML = ''; let squares = [];
@@ -531,15 +529,14 @@
 
         async function checkAndTriggerEvent(player) {
             const currentPos = playerPositions[player];
-            
-            alert(`Player at position: ${currentPos}\n\nEvent details: ${JSON.stringify(squareEvents[currentPos])}`);
-
             if (squareEvents[currentPos]) {
                 const eventToTrigger = squareEvents[currentPos];
                 delete squareEvents[currentPos]; 
                 updateAllVisuals();
                 await triggerEvent(player, eventToTrigger);
+                return true; // An event was triggered
             }
+            return false; // No event was triggered
         }
         
         async function applyWheelResult(result) {
@@ -555,12 +552,18 @@
                 showPopup(`فريق ${activePlayer === 1 ? 'الشباب' : 'البنات'}`, '', `${moves > 0 ? '+' : ''}${moves}`, moves > 0 ? 'positive' : 'negative');
                 await new Promise(resolve => setTimeout(resolve, 1500));
                 resultPopup.style.display = 'none';
+
                 await movePlayerBy(activePlayer, moves);
                 if (await checkWinCondition(activePlayer)) return;
+
                 await checkKnockBack(activePlayer);
-                await checkAndTriggerEvent(activePlayer);
-            } finally {
-                if (!isActionInProgress) return; 
+                const eventFired = await checkAndTriggerEvent(activePlayer);
+
+                if (!eventFired) {
+                    isActionInProgress = false;
+                }
+            } catch (err) {
+                console.error("Error during wheel result application:", err);
                 isActionInProgress = false;
             }
         }
@@ -646,8 +649,12 @@
             try {
                 isActionInProgress = true;
                 const chosenPlayer = await selectTeam();
-                if (!chosenPlayer) { isActionInProgress = false; return; }
-                saveState(); activePlayer = chosenPlayer;
+                if (!chosenPlayer) {
+                    isActionInProgress = false; 
+                    return;
+                }
+                saveState();
+                activePlayer = chosenPlayer;
                 promptToSpin();
             } catch(e) {
                 console.error(e);
@@ -656,9 +663,12 @@
         });
 
         spinWheel.addEventListener('click', function spinHandler() {
-            if (isActionInProgress || !spinWheel.classList.contains('ready-to-spin')) return;
+            if (!spinWheel.classList.contains('ready-to-spin')) return;
+            
+            isActionInProgress = true;
             playSound('wheel_spin');
             spinWheel.classList.remove('ready-to-spin');
+
             const targetIndex = Math.floor(Math.random() * wheelChoices.length);
             const segmentAngle = 360 / wheelChoices.length;
             const stopAngle = (targetIndex * segmentAngle) + (segmentAngle / 2);
@@ -674,7 +684,13 @@
                 await applyWheelResult(resultValue);
             }, { once: true });
         });
-
+        
+        wheelModal.addEventListener('click', (e) => {
+            if (e.target === wheelModal && !isActionInProgress) {
+                playSound('popup_hide');
+                wheelModal.style.display = 'none';
+            }
+        });
         
         undoBtn.addEventListener('click', restoreState);
         resultPopup.addEventListener('click', () => { if(!isActionInProgress) { playSound('popup_hide'); resultPopup.style.display = 'none'; } });
