@@ -306,20 +306,33 @@
         }
         
         function drawWheel() {
-            spinWheel.innerHTML = ''; const segmentAngle = 360 / wheelChoices.length;
+                function drawWheel() {
+            spinWheel.innerHTML = '';
+            const segmentAngle = 360 / wheelChoices.length;
             const colors = ['#00a8e8', '#ff6f61', '#90ee90', '#f7b733', '#87ceeb', '#ff8c94', '#a0e6a0', '#ffd700'];
-            let conicGradient = 'conic-gradient(';
-            wheelChoices.forEach((_, i) => { conicGradient += `${colors[i % colors.length]} ${i * segmentAngle}deg ${(i + 1) * segmentAngle}deg, `; });
-            conicGradient = conicGradient.slice(0, -2) + ')'; spinWheel.style.background = conicGradient;
+            
+            let gradientParts = [];
             wheelChoices.forEach((choice, i) => {
-                const segment = document.createElement('div'); segment.className = 'wheel-segment';
-                const textSpan = document.createElement('span'); textSpan.textContent = choice;
-                textSpan.style.transform = `rotate(${segmentAngle / 2}deg) translateY(-150%)`;
-                segment.appendChild(textSpan); segment.style.transform = `rotate(${i * segmentAngle}deg)`;
+                const startAngle = i * segmentAngle;
+                const endAngle = (i + 1) * segmentAngle;
+                gradientParts.push(`${colors[i % colors.length]} ${startAngle}deg ${endAngle}deg`);
+
+                const segment = document.createElement('div');
+                segment.className = 'wheel-segment';
+                
+                const textSpan = document.createElement('span');
+                textSpan.textContent = choice;
+                // Center the text properly within the segment
+                textSpan.style.transform = `rotate(${segmentAngle / 2}deg) translateY(-110%)`;
+
+                segment.appendChild(textSpan);
+                segment.style.transform = `rotate(${startAngle}deg)`;
                 spinWheel.appendChild(segment);
             });
-        }
 
+            spinWheel.style.background = `conic-gradient(${gradientParts.join(', ')})`;
+        }
+            
         function showPopup(title, text, value = '', typeClass = 'event') {
             playSound('popup_show');
             const popupContent = resultPopup.querySelector('.popup-content');
@@ -520,6 +533,21 @@
         }
 
         async function checkAndTriggerEvent(player) {
+                    async function checkAndTriggerEvent(player) {
+            const currentPos = playerPositions[player];
+            
+            // --- استبدل سطر console.log بهذا السطر ---
+            alert(`Player at position: ${currentPos}\n\nEvent details: ${JSON.stringify(squareEvents[currentPos])}`);
+            // -----------------------------------------
+
+            if (squareEvents[currentPos]) {
+                const eventToTrigger = squareEvents[currentPos];
+                delete squareEvents[currentPos]; 
+                updateAllVisuals();
+                await triggerEvent(player, eventToTrigger);
+            }
+        }
+
             const currentPos = playerPositions[player];
             if (squareEvents[currentPos]) {
                 const eventToTrigger = squareEvents[currentPos];
@@ -641,7 +669,7 @@
             }
         });
 
-        spinWheel.addEventListener('click', function spinHandler() {
+                spinWheel.addEventListener('click', function spinHandler() {
             if (isActionInProgress || !spinWheel.classList.contains('ready-to-spin')) return;
             playSound('wheel_spin');
             spinWheel.classList.remove('ready-to-spin');
@@ -652,12 +680,17 @@
             spinWheel.style.transform = `rotate(${currentRotation}deg)`;
             
             spinWheel.addEventListener('transitionend', async () => {
+                // --- FIX START ---
+                sounds.wheel_spin.pause(); // Stop the spinning sound
+                sounds.wheel_spin.currentTime = 0; // Reset it
+                // --- FIX END ---
                 playSound('wheel_stop');
                 const resultValue = wheelChoices[targetIndex];
                 wheelModal.style.display = 'none';
                 await applyWheelResult(resultValue);
             }, { once: true });
         });
+
         
         undoBtn.addEventListener('click', restoreState);
         resultPopup.addEventListener('click', () => { if(!isActionInProgress) { playSound('popup_hide'); resultPopup.style.display = 'none'; } });
