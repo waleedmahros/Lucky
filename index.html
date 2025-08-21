@@ -75,11 +75,13 @@
         }
         @keyframes gift-bounce { 0%, 100% { transform: translate(-50%, -50%) scale(1); } 50% { transform: translate(-50%, -50%) scale(1.1) rotate(5deg); } }
         
-        .game-board.active-manual-move .square {
-            border: 4px solid var(--accent-color);
+        /* --- MODIFICATION: Added special class for choice squares --- */
+        .square.choice-square {
+            border: 4px solid var(--accent-color) !important;
             transform: scale(1.08); box-shadow: 0 0 15px var(--accent-color);
             animation: choice-pulse 0.8s ease-in-out infinite alternate;
         }
+        .game-board.active-manual-move .square { cursor: crosshair; }
         @keyframes choice-pulse { from { box-shadow: 0 0 15px var(--accent-color); } to { box-shadow: 0 0 25px var(--accent-color); } }
 
         .player {
@@ -91,8 +93,23 @@
         .player-emoji { font-size: clamp(40px, 12vw, 60px); }
         #player1 { filter: drop-shadow(0 0 8px var(--p1-color)) drop-shadow(0 4px 6px rgba(0,0,0,0.4)); }
         #player2 { filter: drop-shadow(0 0 8px var(--p2-color)) drop-shadow(0 4px 6px rgba(0,0,0,0.4)); }
-        .player-shield { font-size: clamp(22px, 7vw, 30px); position: absolute; top: -15px; right: -15px; opacity: 0; transition: all 0.3s; filter: drop-shadow(0 0 5px #ffd700); }
+        
+        /* --- MODIFICATION: Styling for shield and shield count --- */
+        .player-shield {
+            font-size: clamp(22px, 7vw, 30px); position: absolute; top: -15px; right: -15px; 
+            opacity: 0; transition: all 0.3s; filter: drop-shadow(0 0 5px #ffd700);
+            background: rgba(0,0,0,0.4); border-radius: 50%; width: 35px; height: 35px;
+            display: flex; justify-content: center; align-items: center;
+        }
         .player-shield.active { opacity: 1; animation: shield-glow 1s ease-in-out infinite alternate; }
+        .shield-icon { z-index: 1; line-height: 1; }
+        .shield-count {
+            position: absolute; z-index: 2; bottom: -5px; left: -5px;
+            background: #dc3545; color: white; border-radius: 50%;
+            width: 20px; height: 20px; font-size: 12px; font-weight: bold;
+            display: flex; justify-content: center; align-items: center;
+            border: 2px solid white;
+        }
         @keyframes shield-glow { from { transform: scale(1); } to { transform: scale(1.1); } }
 
         #spin-trigger { cursor: pointer; position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 20; }
@@ -151,8 +168,8 @@
         <div class="game-container">
             <div class="game-board" id="game-board"></div>
             <div id="spin-trigger"><span class="wheel-icon">🎡</span></div>
-            <div class="player" id="player1"><span class="player-emoji"></span><div class="player-shield" id="shield1">🛡️</div></div>
-            <div class="player" id="player2"><span class="player-emoji"></span><div class="player-shield" id="shield2">🛡️</div></div>
+            <div class="player" id="player1"><span class="player-emoji"></span><div class="player-shield" id="shield1"><span class="shield-icon">🛡️</span><span class="shield-count" id="shield1-count"></span></div></div>
+            <div class="player" id="player2"><span class="player-emoji"></span><div class="player-shield" id="shield2"><span class="shield-icon">🛡️</span><span class="shield-count" id="shield2-count"></span></div></div>
         </div>
         <div class="controls">
             <div class="admin-controls">
@@ -195,26 +212,28 @@
     document.addEventListener('DOMContentLoaded', () => {
         // --- Sound Management System ---
         const sounds = {
-            ui_click: new Audio('ui_click.mp3'),
-            popup_show: new Audio('popup_show.mp3'),
-            popup_hide: new Audio('popup_hide.mp3'),
-            wheel_spin: new Audio('wheel_spin.wav'),
-            wheel_stop: new Audio('wheel_stop.mp3'),
-            player_move: new Audio('player_move.mp3'),
-            player_move_back: new Audio('player_move_back.mp3'),
-            player_knockback: new Audio('player_knockback.mp3'),
-            event_positive: new Audio('event_positive.mp3'),
-            event_negative: new Audio('event_negative.mp3'),
-            shield_gain: new Audio('shield_gain.mp3'),
-            shield_block: new Audio('shield_block.mp3'),
-            player_swap: new Audio('player_swap.mp3'),
-            game_win: new Audio('game_win.mp3'),
-            firework_explode: new Audio('firework_explode.mp3')
+            ui_click: new Audio('https://rony-games.github.io/who-will-arrive/assets/sounds/ui_click.mp3'),
+            popup_show: new Audio('https://rony-games.github.io/who-will-arrive/assets/sounds/popup_show.mp3'),
+            popup_hide: new Audio('https://rony-games.github.io/who-will-arrive/assets/sounds/popup_hide.mp3'),
+            wheel_spin: new Audio('https://rony-games.github.io/who-will-arrive/assets/sounds/wheel_spin.wav'),
+            wheel_stop: new Audio('https://rony-games.github.io/who-will-arrive/assets/sounds/wheel_stop.mp3'),
+            player_move: new Audio('https://rony-games.github.io/who-will-arrive/assets/sounds/player_move.mp3'),
+            player_move_back: new Audio('https://rony-games.github.io/who-will-arrive/assets/sounds/player_move_back.mp3'),
+            player_knockback: new Audio('https://rony-games.github.io/who-will-arrive/assets/sounds/player_knockback.mp3'),
+            event_positive: new Audio('https://rony-games.github.io/who-will-arrive/assets/sounds/event_positive.mp3'),
+            event_negative: new Audio('https://rony-games.github.io/who-will-arrive/assets/sounds/event_negative.mp3'),
+            shield_gain: new Audio('https://rony-games.github.io/who-will-arrive/assets/sounds/shield_gain.mp3'),
+            shield_block: new Audio('https://rony-games.github.io/who-will-arrive/assets/sounds/shield_block.mp3'),
+            player_swap: new Audio('https://rony-games.github.io/who-will-arrive/assets/sounds/player_swap.mp3'),
+            game_win: new Audio('https://rony-games.github.io/who-will-arrive/assets/sounds/game_win.mp3'),
+            firework_explode: new Audio('https://rony-games.github.io/who-will-arrive/assets/sounds/firework_explode.mp3')
         };
+        // --- MODIFICATION: Sound play function improved ---
+        // By cloning the audio node, we can play sounds in rapid succession without interruption.
         function playSound(soundName) {
             if (sounds[soundName]) {
-                sounds[soundName].currentTime = 0;
-                sounds[soundName].play().catch(e => console.log(`Could not play sound: ${e}`));
+                const sound = sounds[soundName].cloneNode();
+                sound.play().catch(e => console.log(`Could not play sound: ${e}`));
             }
         }
         
@@ -235,6 +254,7 @@
         let currentRotation = 0;
         let gameStateHistory = [];
         let playerPositions, playerShields, playerFlags, squareEvents;
+        let isManualMoveActive = false; // --- MODIFICATION: State for manual move ---
 
         const wheelChoices = ["+1", "+2", "-2", "+3", "+4", "-3", "+5", "+6"];
         const playerEmojis = { 1: { standing: '🧍', walking: '🚶' }, 2: { standing: '🧍‍♀️', walking: '🚶‍♀️' } };
@@ -292,7 +312,16 @@
             if (p2Span) p2Span.textContent = (player === 2) ? playerEmojis[2][state] : playerEmojis[2]['standing'];
         }
 
-        function updateShieldVisual(player) { document.getElementById(`shield${player}`).classList.toggle('active', playerShields[player]); }
+        // --- MODIFICATION: Shield visual now handles counts ---
+        function updateShieldVisual(player) {
+            const shieldEl = document.getElementById(`shield${player}`);
+            const countEl = document.getElementById(`shield${player}-count`);
+            const shieldCount = playerShields[player];
+            
+            shieldEl.classList.toggle('active', shieldCount > 0);
+            countEl.textContent = shieldCount > 1 ? shieldCount : '';
+            countEl.style.display = shieldCount > 1 ? 'flex' : 'none';
+        }
 
         function updateAllVisuals() {
             updatePlayerPosition(1, true); updatePlayerPosition(2, true);
@@ -369,8 +398,9 @@
         }
         
         function setupGame() {
-            playerPositions = { 1: 0, 2: 0 }; playerShields = { 1: false, 2: false }; playerFlags = { 1: {}, 2: {} };
-            gameStateHistory = []; activePlayer = 1; isActionInProgress = false;
+            // --- MODIFICATION: Shields are now numbers ---
+            playerPositions = { 1: 0, 2: 0 }; playerShields = { 1: 0, 2: 0 }; playerFlags = { 1: {}, 2: {} };
+            gameStateHistory = []; activePlayer = 1; isActionInProgress = false; isManualMoveActive = false;
             winScreen.style.display = 'none';
             createBoard(); distributeEvents(); drawWheel();
             updateAllVisuals(); updatePlayerVisual(0, 'standing');
@@ -398,9 +428,9 @@
                 if(currentPos === nextPos) break;
                 playerPositions[player] = nextPos;
                 playSound(steps > 0 ? 'player_move' : 'player_move_back');
-                await new Promise(resolve => setTimeout(resolve, 250));
                 updatePlayerPosition(player);
-                updatePlayerPosition(getOpponent(player));
+                updatePlayerPosition(getOpponent(player)); // Update opponent in case they were stacked
+                await new Promise(resolve => setTimeout(resolve, 250));
             }
             updatePlayerVisual(player, 'standing');
         }
@@ -458,58 +488,100 @@
         
         async function triggerEvent(player, event) {
             isActionInProgress = true;
-            let finalEvent = deepCopy(event);
-            let needsAnotherSpin = false;
             const opponent = getOpponent(player);
-            
-            if (finalEvent.category.includes('NEGATIVE') || finalEvent.category.includes('DEBUFF')) playSound('event_negative');
-            if (finalEvent.category.includes('POSITIVE') || finalEvent.category.includes('BUFF')) playSound('event_positive');
-            if (finalEvent.id === 12) playSound('player_swap');
+            let needsAnotherSpin = false;
 
+            // Determine sound effect early
+            if (event.category.includes('NEGATIVE') || event.category.includes('DEBUFF')) playSound('event_negative');
+            else if (event.category.includes('POSITIVE') || event.category.includes('BUFF')) playSound('event_positive');
+            else if (event.id === 12) playSound('player_swap');
 
-            if (finalEvent.category === 'DYNAMIC_SWAP') {
-                if (playerPositions[player] < playerPositions[opponent]) {
-                    finalEvent.category = 'SELF_BUFF'; finalEvent.title = 'تبديل محظوظ!'; finalEvent.description = 'لقد قفزت إلى مركز متقدم!';
+            // --- MODIFICATION: Completely new logic for Swap Event ---
+            if (event.id === 12) {
+                const playerIsBehind = playerPositions[player] < playerPositions[opponent];
+                const negativelyAffectedPlayer = playerIsBehind ? opponent : player;
+
+                if (playerShields[negativelyAffectedPlayer] > 0) {
+                    playSound('shield_block');
+                    playerShields[negativelyAffectedPlayer]--;
+                    updateShieldVisual(negativelyAffectedPlayer);
+                    showPopup('تم صد التبديل!', `درع فريق ${negativelyAffectedPlayer === 1 ? 'الشباب' : 'البنات'} منع عملية التبديل!`, '', 'event');
+                    await new Promise(r => setTimeout(r, 2500));
                 } else {
-                    finalEvent.category = 'SELF_DEBUFF'; finalEvent.title = 'فخ التبديل!'; finalEvent.description = 'أنت على وشك العودة للخلف!';
-                }
-            }
+                    const dynamicTitle = playerIsBehind ? 'تبديل محظوظ!' : 'فخ التبديل!';
+                    const dynamicDesc = playerIsBehind ? 'لقد قفزت إلى مركز متقدم!' : 'أنت على وشك العودة للخلف!';
+                    const typeClass = playerIsBehind ? 'positive' : 'negative';
+                    showPopup(dynamicTitle, dynamicDesc, '', typeClass);
+                    await new Promise(r => setTimeout(r, 2500));
 
-            if (finalEvent.category === 'SELF_DEBUFF' && playerShields[player]) {
+                    [playerPositions[1], playerPositions[2]] = [playerPositions[2], playerPositions[1]];
+                    updatePlayerPosition(1);
+                    updatePlayerPosition(2);
+                    // Check for new events at the swapped positions
+                    await checkAndTriggerEvent(1);
+                    await checkAndTriggerEvent(2);
+                }
+            } else if (event.category === 'SELF_DEBUFF' && playerShields[player] > 0) {
                 playSound('shield_block');
-                showPopup(finalEvent.title, finalEvent.description, '', 'negative');
-                await new Promise(r => setTimeout(r, 2000)); 
-                playerShields[player] = false; updateShieldVisual(player);
-                showPopup('تم استخدام الدرع!', `تم صد الحدث السلبي بنجاح! 🛡️<br><small style="font-size: 14px; opacity: 0.7;">(الحدث كان: ${finalEvent.title})</small>`, '', 'event');
+                playerShields[player]--;
+                updateShieldVisual(player);
+                showPopup('تم استخدام الدرع!', `تم صد الحدث السلبي بنجاح! 🛡️<br><small style="font-size: 14px; opacity: 0.7;">(الحدث كان: ${event.title})</small>`, '', 'event');
                 await new Promise(r => setTimeout(r, 2500));
             } else {
-                let typeClass = finalEvent.category.includes('DEBUFF') ? 'negative' : (finalEvent.category.includes('BUFF') ? 'positive' : 'event');
-                showPopup(finalEvent.title, finalEvent.description, '', typeClass);
+                let typeClass = event.category.includes('DEBUFF') ? 'negative' : (event.category.includes('BUFF') ? 'positive' : 'event');
+                showPopup(event.title, event.description, '', typeClass);
                 await new Promise(r => setTimeout(r, 2500));
 
                 let movedPlayer = null;
-                switch(finalEvent.id) {
+                switch(event.id) {
                     case 1: await movePlayerBy(player, 10); movedPlayer = player; break;
                     case 2: await movePlayerBy(player, 5); movedPlayer = player; break;
                     case 3: needsAnotherSpin = true; break;
+                    // --- MODIFICATION: Event "القائد!" activated ---
+                    case 4:
+                        const choiceSquares = [];
+                        for (let i = 1; i <= 5; i++) {
+                            const targetSq = playerPositions[player] + i;
+                            if (targetSq <= totalSquares) {
+                                const sqEl = document.getElementById(`square-${targetSq}`);
+                                if (sqEl) {
+                                    sqEl.classList.add('choice-square');
+                                    choiceSquares.push(sqEl);
+                                }
+                            }
+                        }
+                        const choice = await new Promise(resolve => {
+                            const handler = (e) => {
+                                const sq = e.target.closest('.choice-square');
+                                if (sq) {
+                                    board.removeEventListener('click', handler);
+                                    resolve(parseInt(sq.id.split('-')[1]));
+                                }
+                            };
+                            board.addEventListener('click', handler);
+                        });
+                        choiceSquares.forEach(sq => sq.classList.remove('choice-square'));
+                        playerPositions[player] = choice;
+                        updatePlayerPosition(player, true);
+                        movedPlayer = player;
+                        break;
                     case 5: playerFlags[player] = {...playerFlags[player], doubleNextSpin: true }; needsAnotherSpin = true; break;
                     case 14: playerFlags[player] = {...playerFlags[player], reverseNextSpin: true }; needsAnotherSpin = true; break;
-                    case 8: playSound('shield_gain'); playerShields[player] = true; updateShieldVisual(player); break;
+                    case 8: playSound('shield_gain'); playerShields[player]++; updateShieldVisual(player); break;
                     case 9: await movePlayerBy(player, -5); movedPlayer = player; break;
                     case 10: await movePlayerBy(player, -10); movedPlayer = player; break;
                     case 11: await movePlayerBy(player, -playerPositions[player]); movedPlayer = player; break;
-                    case 12: [playerPositions[1], playerPositions[2]] = [playerPositions[2], playerPositions[1]]; updatePlayerPosition(1); updatePlayerPosition(2); await checkAndTriggerEvent(1); await checkAndTriggerEvent(2); break;
                     
                     case 6: case 7: case 13:
-                        if (playerShields[opponent]) {
+                        if (playerShields[opponent] > 0) {
                             playSound('shield_block');
-                            playerShields[opponent] = false; updateShieldVisual(opponent);
+                            playerShields[opponent]--; updateShieldVisual(opponent);
                             showPopup('درع الخصم!', `لقد حاول فريقك عرقلة الخصم، ولكن درعه أنقذه!`, '', 'event');
                             await new Promise(r => setTimeout(r, 2500));
                         } else {
-                            if(finalEvent.id === 6) await movePlayerBy(opponent, -5);
-                            if(finalEvent.id === 7) await movePlayerBy(opponent, -10);
-                            if(finalEvent.id === 13) { playerPositions[opponent] = 0; updatePlayerPosition(opponent); }
+                            if(event.id === 6) await movePlayerBy(opponent, -5);
+                            if(event.id === 7) await movePlayerBy(opponent, -10);
+                            if(event.id === 13) { await movePlayerBy(opponent, -playerPositions[opponent]); }
                             movedPlayer = opponent;
                         }
                         break;
@@ -532,11 +604,11 @@
             if (squareEvents[currentPos]) {
                 const eventToTrigger = squareEvents[currentPos];
                 delete squareEvents[currentPos]; 
-                updateAllVisuals();
+                document.getElementById(`square-${currentPos}`).classList.remove('event-square');
                 await triggerEvent(player, eventToTrigger);
-                return true; // An event was triggered
+                return true; 
             }
-            return false; // No event was triggered
+            return false; 
         }
         
         async function applyWheelResult(result) {
@@ -567,12 +639,23 @@
                 isActionInProgress = false;
             }
         }
-
+        
+        // --- MODIFICATION: Admin actions improved ---
         async function handleAdminAction(e) {
-            if (isActionInProgress) return;
-            isActionInProgress = true;
+            if (isActionInProgress && e.currentTarget.id !== 'manual-move-btn') return;
             playSound('ui_click');
             const currentBtn = e.currentTarget;
+
+            // --- Toggling manual move ---
+            if (currentBtn.id === 'manual-move-btn') {
+                isManualMoveActive = !isManualMoveActive;
+                currentBtn.classList.toggle('active', isManualMoveActive);
+                board.classList.toggle('active-manual-move', isManualMoveActive);
+                if (!isManualMoveActive) { isActionInProgress = false; }
+                return;
+            }
+
+            isActionInProgress = true;
             const needsTeam = !['admin-swap-btn'].includes(currentBtn.id);
             let player;
             
@@ -584,32 +667,11 @@
                 saveState();
                 
                 switch (currentBtn.id) {
-                    case 'manual-move-btn':
-                        currentBtn.classList.add('active');
-                        board.classList.add('active-manual-move');
-                        const clickHandler = async (ev) => {
-                            const sq = ev.target.closest('.square');
-                            try {
-                                if (sq) {
-                                    playSound('ui_click');
-                                    const squareId = sq.id === 'start-square' ? 0 : parseInt(sq.id.split('-')[1]);
-                                    playerPositions[player] = squareId;
-                                    updatePlayerPosition(player, true);
-                                    await checkAndTriggerEvent(player);
-                                    await checkWinCondition(player);
-                                }
-                            } finally {
-                                currentBtn.classList.remove('active');
-                                board.classList.remove('active-manual-move');
-                                isActionInProgress = false;
-                            }
-                        };
-                        board.addEventListener('click', clickHandler, { once: true });
-                        return;
+                    // Manual move logic is now handled by a separate event listener set when active
                     case 'admin-shield-btn':
                         playSound('shield_gain');
-                        playerShields[player] = true; updateShieldVisual(player);
-                        showPopup('تم!', `تم تفعيل الدرع لفريق ${player === 1 ? 'الشباب' : 'البنات'}.`, '', 'event');
+                        playerShields[player]++; updateShieldVisual(player);
+                        showPopup('تم!', `تم منح درع لفريق ${player === 1 ? 'الشباب' : 'البنات'}.`, '', 'event');
                         break;
                     case 'admin-detector-btn':
                         const pos = playerPositions[player]; let revealedHtml = 'الأحداث القادمة:<br>'; let found = false;
@@ -634,14 +696,41 @@
                         await new Promise(r => setTimeout(r, 1500));
                         resultPopup.style.display = 'none';
                         await checkAndTriggerEvent(1); await checkAndTriggerEvent(2);
+                        await checkKnockBack(1); // Check knock-back after swap
+                        await checkKnockBack(2);
                         break;
                 }
             } finally {
-                if (currentBtn.id !== 'manual-move-btn') {
-                    isActionInProgress = false;
-                }
+                isActionInProgress = false;
             }
         }
+        
+        // --- MODIFICATION: Manual Move listener ---
+        board.addEventListener('click', async (e) => {
+            if (!isManualMoveActive) return;
+            
+            const sq = e.target.closest('.square');
+            if (sq) {
+                isActionInProgress = true;
+                playSound('ui_click');
+                const player = await selectTeam();
+                if (!player) { isActionInProgress = false; return; }
+
+                saveState();
+                const squareId = sq.id === 'start-square' ? 0 : parseInt(sq.id.split('-')[1]);
+                playerPositions[player] = squareId;
+                updatePlayerPosition(player, true);
+                
+                // Deactivate manual move mode after selection
+                isManualMoveActive = false;
+                document.getElementById('manual-move-btn').classList.remove('active');
+                board.classList.remove('active-manual-move');
+                
+                await checkAndTriggerEvent(player);
+                await checkWinCondition(player);
+                isActionInProgress = false;
+            }
+        });
 
         spinTrigger.addEventListener('click', async () => {
             if (isActionInProgress) return;
