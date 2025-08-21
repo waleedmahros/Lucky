@@ -126,7 +126,6 @@
         .team-select-btn { border: none; border-radius: 15px; padding: 15px 30px; font-family: 'Cairo', sans-serif; font-size: 20px; font-weight: 700; color: white; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
         #select-btn-p1 { background: var(--p1-color); } #select-btn-p2 { background: var(--p2-color); }
         
-        /* FIX: Added back win screen animations */
         #win-screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; flex-direction: column; justify-content: center; align-items: center; z-index: 300; transition: all 0.8s ease; overflow: hidden; }
         #win-screen.winner-p1 { background: radial-gradient(circle at center, #1565c0 0%, #1976d2 50%, #42a5f5 100%); }
         #win-screen.winner-p2 { background: radial-gradient(circle at center, #ad1457 0%, #c2185b 50%, #e91e63 100%); }
@@ -179,16 +178,7 @@
             </div>
         </div>
     </div>
-    <div id="win-screen">
-        <div class="win-content">
-            <div class="celebration-emoji">🎉</div>
-            <div class="win-text">
-                <span class="celebration">الفائز هو</span>
-                <span class="winner-team"></span>
-            </div>
-            <div class="win-instruction">اضغط للعب مرة أخرى</div>
-        </div>
-    </div>
+    <div id="win-screen"></div>
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -223,41 +213,40 @@
             { id: 12, title: 'تبديل!', description: 'سيتم تبديل أماكن الفريقين.', category: 'DYNAMIC_SWAP' },
         ];
         
-        // --- FIX: Sound System Added Back ---
         const sounds = {
             ui_click: new Audio('ui_click.mp3'), popup_show: new Audio('popup_show.mp3'), popup_hide: new Audio('popup_hide.mp3'),
-            wheel_spin: new Audio('wheel_spin.wav'), // Corrected extension
-            wheel_stop: new Audio('wheel_stop.mp3'), player_move: new Audio('player_move.mp3'), player_move_back: new Audio('player_move_back.mp3'),
-            knockback: new Audio('player_knockback.mp3'), event_positive: new Audio('event_positive.mp3'), event_negative: new Audio('event_negative.mp3'),
-            shield_gain: new Audio('shield_gain.mp3'), shield_block: new Audio('shield_block.mp3'), swap: new Audio('player_swap.mp3'),
-            game_win: new Audio('game_win.mp3'), firework: new Audio('firework_explode.mp3')
+            wheel_spin: new Audio('wheel_spin.wav'), wheel_stop: new Audio('wheel_stop.mp3'), player_move: new Audio('player_move.mp3'),
+            player_move_back: new Audio('player_move_back.mp3'), knockback: new Audio('player_knockback.mp3'), event_positive: new Audio('event_positive.mp3'),
+            event_negative: new Audio('event_negative.mp3'), shield_gain: new Audio('shield_gain.mp3'), shield_block: new Audio('shield_block.mp3'),
+            swap: new Audio('player_swap.mp3'), game_win: new Audio('game_win.mp3'), firework: new Audio('firework_explode.mp3')
         };
         function playSound(soundName) {
             if (sounds[soundName]) {
                 sounds[soundName].currentTime = 0;
-                sounds[soundName].play().catch(e => console.log(`Could not play sound: ${e}`));
+                sounds[soundName].play().catch(e => console.log(`Could not play sound: ${e.message}`));
             }
         }
         
-        // --- State Management ---
         function deepCopy(obj) { return JSON.parse(JSON.stringify(obj)); }
+
         function saveState() {
             gameStateHistory.push({
                 playerPositions: deepCopy(playerPositions), playerShields: deepCopy(playerShields), playerFlags: deepCopy(playerFlags), squareEvents: deepCopy(squareEvents)
             });
             toggleUndoButton();
         }
+
         function restoreState() {
             if (isActionInProgress || gameStateHistory.length === 0) return;
+            playSound('ui_click');
             const lastState = gameStateHistory.pop();
             playerPositions = lastState.playerPositions; playerShields = lastState.playerShields; playerFlags = lastState.playerFlags; squareEvents = lastState.squareEvents;
             updateAllVisuals();
             showPopup('تم!', 'تم التراجع عن الحركة الأخيرة.', '', 'event');
             toggleUndoButton();
         }
-        function toggleUndoButton() { undoBtn.disabled = gameStateHistory.length === 0; }
         
-        // --- Helper Functions ---
+        function toggleUndoButton() { undoBtn.disabled = gameStateHistory.length === 0; }
         function getOpponent(p) { return p === 1 ? 2 : 1; }
         function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[array[i], array[j]] = [array[j], array[i]]; } }
 
@@ -277,7 +266,6 @@
             });
         }
 
-        // --- UI Update Functions ---
         function updatePlayerVisual(player, state) {
             const p1Span = player1El.querySelector('.player-emoji'); const p2Span = player2El.querySelector('.player-emoji');
             if (p1Span) p1Span.textContent = (player === 1) ? playerEmojis[1][state] : playerEmojis[1]['standing'];
@@ -293,7 +281,20 @@
                 if (sqEl) sqEl.classList.add('event-square');
             }
         }
-        function drawWheel() { /* ... same correct logic ... */ }
+        function drawWheel() {
+            spinWheel.innerHTML = ''; const segmentAngle = 360 / wheelChoices.length;
+            const colors = ['#00a8e8', '#ff6f61', '#90ee90', '#f7b733', '#87ceeb', '#ff8c94', '#a0e6a0', '#ffd700'];
+            let conicGradient = 'conic-gradient(';
+            wheelChoices.forEach((_, i) => { conicGradient += `${colors[i % colors.length]} ${i * segmentAngle}deg ${(i + 1) * segmentAngle}deg, `; });
+            conicGradient = conicGradient.slice(0, -2) + ')'; spinWheel.style.background = conicGradient;
+            wheelChoices.forEach((choice, i) => {
+                const segment = document.createElement('div'); segment.className = 'wheel-segment';
+                const textSpan = document.createElement('span'); textSpan.textContent = choice;
+                textSpan.style.transform = `rotate(${segmentAngle / 2}deg) translateY(-150%)`;
+                segment.appendChild(textSpan); segment.style.transform = `rotate(${i * segmentAngle}deg)`;
+                spinWheel.appendChild(segment);
+            });
+        }
         function showPopup(title, text, value = '', typeClass = 'event') {
             playSound('popup_show');
             const popupContent = resultPopup.querySelector('.popup-content');
@@ -304,21 +305,42 @@
             if (typeClass) popupContent.classList.add(typeClass);
             resultPopup.style.display = 'flex';
         }
-        function promptToSpin() { playSound('ui_click'); wheelModal.style.display = 'flex'; spinWheel.classList.add('ready-to-spin'); }
+        function promptToSpin() { playSound('ui_click'); wheelModal.style.display = 'flex'; spinWheel.classList.add('ready-to-spin');}
 
-        // --- Game Setup ---
-        function createBoard() { /* ... same correct logic ... */ }
-        function distributeEvents() { /* ... same correct logic ... */ }
+        function createBoard() {
+            board.innerHTML = ''; let squares = [];
+            for (let i = 1; i <= totalSquares; i++) {
+                const square = document.createElement('div'); square.className = 'square'; square.id = `square-${i}`;
+                const numberSpan = document.createElement('span'); numberSpan.className = 'number';
+                if (i === totalSquares) { square.classList.add('finish'); numberSpan.textContent = '🏆'; } else { numberSpan.textContent = i; }
+                square.appendChild(numberSpan); squares.push(square);
+            }
+            squares.reverse();
+            let startSquare = document.createElement('div'); startSquare.className = 'square'; startSquare.id = 'start-square'; startSquare.textContent = 'انطلاق';
+            const emptyCells = 5 - (squares.length % 5);
+            if (emptyCells < 5) { for (let i = 0; i < emptyCells; i++) { const div = document.createElement('div'); div.style.background = 'transparent'; div.style.border = 'none'; squares.push(div); } }
+            squares.push(startSquare); board.innerHTML = ''; squares.forEach(sq => board.appendChild(sq));
+        }
+
+        function distributeEvents() {
+            squareEvents = {}; let availableSquares = Array.from({ length: totalSquares - 2 }, (_, i) => i + 2);
+            shuffleArray(availableSquares); const eventSquares = []; const forbidden = new Set();
+            for (const sq of availableSquares) {
+                if (!forbidden.has(sq)) {
+                    eventSquares.push(sq); forbidden.add(sq); forbidden.add(sq - 1); forbidden.add(sq + 1);
+                }
+                if (eventSquares.length >= gameEvents.length) break;
+            }
+            eventSquares.forEach((sqNum, i) => { squareEvents[sqNum] = gameEvents[i]; });
+        }
+        
         function setupGame() {
             playerPositions = { 1: 0, 2: 0 }; playerShields = { 1: false, 2: false }; playerFlags = { 1: {}, 2: {} };
             gameStateHistory = []; activePlayer = 1; isActionInProgress = false;
             winScreen.innerHTML = `
                 <div class="win-content">
                     <div class="celebration-emoji">🎉</div>
-                    <div class="win-text">
-                        <span class="celebration">الفائز هو</span>
-                        <span class="winner-team"></span>
-                    </div>
+                    <div class="win-text"><span class="celebration">الفائز هو</span><span class="winner-team"></span></div>
                     <div class="win-instruction">اضغط للعب مرة أخرى</div>
                 </div>`;
             winScreen.style.display = 'none';
@@ -327,8 +349,18 @@
             toggleUndoButton();
         }
 
-        // --- Core Gameplay Functions ---
-        function updatePlayerPosition(player, isInstant = false) { /* ... same correct logic ... */ }
+        function updatePlayerPosition(player, isInstant = false) {
+            const playerEl = (player === 1) ? player1El : player2El;
+            playerEl.style.transition = isInstant ? 'none' : 'top 0.3s ease, left 0.3s ease';
+            const pos = playerPositions[player];
+            let targetElement = (pos <= 0) ? document.getElementById('start-square') : document.getElementById(`square-${pos}`);
+            if (!targetElement) return;
+            const tRect = targetElement.getBoundingClientRect(); const cRect = document.querySelector('.game-container').getBoundingClientRect();
+            const centerX = tRect.left - cRect.left + tRect.width / 2; const centerY = tRect.top - cRect.top + tRect.height / 2;
+            const offset = (pos > 0 && playerPositions[1] === playerPositions[2]) ? (player === 1 ? -15 : 15) : 0;
+            playerEl.style.left = `${centerX + offset}px`; playerEl.style.top = `${centerY}px`;
+        }
+
         async function movePlayerBy(player, steps) {
             updatePlayerVisual(player, 'walking');
             for (let i = 0; i < Math.abs(steps); i++) {
@@ -338,7 +370,7 @@
                 playerPositions[player] = nextPos;
                 playSound(steps > 0 ? 'player_move' : 'player_move_back');
                 await new Promise(resolve => setTimeout(resolve, 300));
-                updatePlayerPosition(player); updatePlayerPosition(getOpponent(player));
+                updateAllVisuals();
             }
             updatePlayerVisual(player, 'standing');
         }
@@ -349,8 +381,8 @@
                 playSound('knockback');
                 showPopup('إرجاع الخصم!', `لقد هبطت على نفس مربع خصمك، سيعود خطوتين للخلف.`, '', 'event');
                 await new Promise(resolve => setTimeout(resolve, 2000));
-                await movePlayerBy(opponent, -2);
                 resultPopup.style.display = 'none';
+                await movePlayerBy(opponent, -2);
             }
         }
         
@@ -425,7 +457,7 @@
                     case 9: await movePlayerBy(player, -5); movedPlayer = player; break;
                     case 10: await movePlayerBy(player, -10); movedPlayer = player; break;
                     case 11: await movePlayerBy(player, -playerPositions[player]); movedPlayer = player; break;
-                    case 12: playSound('swap'); [playerPositions[1], playerPositions[2]] = [playerPositions[2], playerPositions[1]]; updatePlayerPosition(1); updatePlayerPosition(2); await checkAndTriggerEvent(1); await checkAndTriggerEvent(2); break;
+                    case 12: playSound('swap'); [playerPositions[1], playerPositions[2]] = [playerPositions[2], playerPositions[1]]; updateAllVisuals(); await checkAndTriggerEvent(1); await checkAndTriggerEvent(2); break;
                     
                     case 6: case 7: case 13:
                         if (playerShields[opponent]) {
@@ -442,13 +474,14 @@
                 }
                 if (movedPlayer) { await checkAndTriggerEvent(movedPlayer); }
             }
+
             resultPopup.style.display = 'none';
             if (await checkWinCondition(player) || await checkWinCondition(opponent)) return;
             
             if (needsAnotherSpin) {
                 activePlayer = player;
                 promptToSpin();
-                isActionInProgress = false; // Allow wheel to be spun
+                isActionInProgress = false;
             } else {
                 isActionInProgress = false;
             }
@@ -464,22 +497,25 @@
         }
         
         async function applyWheelResult(result) {
-            isActionInProgress = true;
-            let moves = parseInt(result);
-            if (playerFlags[activePlayer]?.doubleNextSpin && moves > 0) {
-                moves *= 2; delete playerFlags[activePlayer].doubleNextSpin;
+            try {
+                isActionInProgress = true;
+                let moves = parseInt(result);
+                if (playerFlags[activePlayer]?.doubleNextSpin && moves > 0) {
+                    moves *= 2; delete playerFlags[activePlayer].doubleNextSpin;
+                }
+                if (playerFlags[activePlayer]?.reverseNextSpin) {
+                    moves *= -1; delete playerFlags[activePlayer].reverseNextSpin;
+                }
+                showPopup(`فريق ${activePlayer === 1 ? 'الشباب' : 'البنات'}`, '', `${moves > 0 ? '+' : ''}${moves}`, moves > 0 ? 'positive' : 'negative');
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                resultPopup.style.display = 'none';
+                await movePlayerBy(activePlayer, moves);
+                if (await checkWinCondition(activePlayer)) return;
+                await checkKnockBack(activePlayer);
+                await checkAndTriggerEvent(activePlayer);
+            } finally {
+                isActionInProgress = false;
             }
-            if (playerFlags[activePlayer]?.reverseNextSpin) {
-                moves *= -1; delete playerFlags[activePlayer].reverseNextSpin;
-            }
-            showPopup(`فريق ${activePlayer === 1 ? 'الشباب' : 'البنات'}`, '', `${moves > 0 ? '+' : ''}${moves}`, moves > 0 ? 'positive' : 'negative');
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            resultPopup.style.display = 'none';
-            await movePlayerBy(activePlayer, moves);
-            if (await checkWinCondition(activePlayer)) return;
-            await checkKnockBack(activePlayer);
-            await checkAndTriggerEvent(activePlayer);
-            isActionInProgress = false;
         }
 
         async function handleAdminAction(e) {
@@ -489,7 +525,7 @@
             const currentBtn = e.currentTarget;
             const needsTeam = !['admin-swap-btn'].includes(currentBtn.id);
             let player;
-
+            
             try {
                 if (needsTeam) {
                     player = await selectTeam();
@@ -506,17 +542,18 @@
                                 if (sq) {
                                     const squareId = sq.id === 'start-square' ? 0 : parseInt(sq.id.split('-')[1]);
                                     playerPositions[player] = squareId;
-                                    updatePlayerPosition(player, true);
+                                    updateAllVisuals();
+                                    await checkKnockBack(player);
                                     await checkAndTriggerEvent(player);
                                     await checkWinCondition(player);
                                 }
                             } finally {
                                 currentBtn.classList.remove('active'); board.classList.remove('active-manual-move');
-                                isActionInProgress = false;
+                                isActionInProgress = false; 
                             }
                         };
                         board.addEventListener('click', clickHandler, { once: true });
-                        return;
+                        return; // Exit function to keep lock active until click
                     case 'admin-shield-btn':
                         playSound('shield_gain'); playerShields[player] = true; updateShieldVisual(player);
                         showPopup('تم!', `تم تفعيل الدرع لفريق ${player === 1 ? 'الشباب' : 'البنات'}.`, '', 'event');
@@ -538,7 +575,7 @@
                     case 'admin-swap-btn':
                         playSound('swap');
                         [playerPositions[1], playerPositions[2]] = [playerPositions[2], playerPositions[1]];
-                        updatePlayerPosition(1); updatePlayerPosition(2);
+                        updateAllVisuals();
                         showPopup('تم!', 'تم تبديل مراكز الفريقين.', '', 'event');
                         await new Promise(r => setTimeout(r, 1500));
                         resultPopup.style.display = 'none';
@@ -576,4 +613,12 @@
         });
         
         undoBtn.addEventListener('click', restoreState);
-        resultPopup.addEventListener('click', ()
+        resultPopup.addEventListener('click', () => { if(!isActionInProgress) { playSound('popup_hide'); resultPopup.style.display = 'none'; } });
+        winScreen.addEventListener('click', () => { playSound('ui_click'); setupGame(); });
+        document.querySelectorAll('.admin-btn:not(#admin-undo-btn)').forEach(btn => btn.addEventListener('click', handleAdminAction));
+
+        setupGame();
+    });
+    </script>
+</body>
+</html>
