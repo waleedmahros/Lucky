@@ -75,7 +75,11 @@
         }
         @keyframes gift-bounce { 0%, 100% { transform: translate(-50%, -50%) scale(1); } 50% { transform: translate(-50%, -50%) scale(1.1) rotate(5deg); } }
         
-        .square.active-manual-move { border: 4px solid var(--accent-color); transform: scale(1.08); box-shadow: 0 0 15px var(--accent-color); animation: choice-pulse 0.8s ease-in-out infinite alternate; }
+        .game-board.active-manual-move .square {
+            border: 4px solid var(--accent-color);
+            transform: scale(1.08); box-shadow: 0 0 15px var(--accent-color);
+            animation: choice-pulse 0.8s ease-in-out infinite alternate;
+        }
         @keyframes choice-pulse { from { box-shadow: 0 0 15px var(--accent-color); } to { box-shadow: 0 0 25px var(--accent-color); } }
 
         .player {
@@ -350,11 +354,11 @@
                 let currentPos = playerPositions[player];
                 let nextPos = currentPos + Math.sign(steps);
                 if (nextPos < 0) nextPos = 0; if (nextPos > totalSquares) nextPos = totalSquares;
-                if(currentPos === nextPos) break; // Stop if stuck
+                if(currentPos === nextPos) break;
                 playerPositions[player] = nextPos;
                 await new Promise(resolve => setTimeout(resolve, 250));
                 updatePlayerPosition(player);
-                updatePlayerPosition(getOpponent(player));
+                updatePlayerPosition(getOpponent(player)); // Update opponent too for correct offset
             }
             updatePlayerVisual(player, 'standing');
         }
@@ -370,7 +374,7 @@
         }
         
         async function showWinScreen(player) {
-            isActionInProgress = true;
+            isActionInProgress = true; // Lock the game
             const winnerName = player === 1 ? 'الشباب' : 'البنات';
             winScreen.className = `winner-p${player}`;
             winScreen.querySelector('.winner-team').textContent = winnerName;
@@ -380,7 +384,7 @@
         async function checkWinCondition(player) {
             if (playerPositions[player] >= totalSquares) {
                 playerPositions[player] = totalSquares;
-                updatePlayerPosition(player);
+                updatePlayerPosition(player, true);
                 await showWinScreen(player);
                 return true;
             }
@@ -391,9 +395,10 @@
             isActionInProgress = true;
             let finalEvent = deepCopy(event);
             let needsAnotherSpin = false;
+            const opponent = getOpponent(player);
             
             if (finalEvent.category === 'DYNAMIC_SWAP') {
-                if (playerPositions[player] < playerPositions[getOpponent(player)]) {
+                if (playerPositions[player] < playerPositions[opponent]) {
                     finalEvent.category = 'SELF_BUFF'; finalEvent.title = 'تبديل محظوظ!'; finalEvent.description = 'لقد قفزت إلى مركز متقدم!';
                 } else {
                     finalEvent.category = 'SELF_DEBUFF'; finalEvent.title = 'فخ التبديل!'; finalEvent.description = 'أنت على وشك العودة للخلف!';
@@ -411,7 +416,6 @@
                 showPopup(finalEvent.title, finalEvent.description, '', typeClass);
                 await new Promise(r => setTimeout(r, 2500));
 
-                const opponent = getOpponent(player);
                 let movedPlayer = null;
                 switch(finalEvent.id) {
                     case 1: await movePlayerBy(player, 10); movedPlayer = player; break;
@@ -419,22 +423,34 @@
                     case 3: needsAnotherSpin = true; break;
                     case 5: playerFlags[player] = {...playerFlags[player], doubleNextSpin: true }; needsAnotherSpin = true; break;
                     case 14: playerFlags[player] = {...playerFlags[player], reverseNextSpin: true }; needsAnotherSpin = true; break;
-                    case 6: await movePlayerBy(opponent, -5); movedPlayer = opponent; break;
-                    case 7: await movePlayerBy(opponent, -10); movedPlayer = opponent; break;
                     case 8: playerShields[player] = true; updateShieldVisual(player); break;
                     case 9: await movePlayerBy(player, -5); movedPlayer = player; break;
                     case 10: await movePlayerBy(player, -10); movedPlayer = player; break;
                     case 11: await movePlayerBy(player, -playerPositions[player]); movedPlayer = player; break;
                     case 12: [playerPositions[1], playerPositions[2]] = [playerPositions[2], playerPositions[1]]; updatePlayerPosition(1); updatePlayerPosition(2); await checkAndTriggerEvent(1); await checkAndTriggerEvent(2); break;
-                    case 13: playerPositions[opponent] = 0; updatePlayerPosition(opponent); break;
+                    
+                    case 6: case 7: case 13: // Opponent Debuffs
+                        if (playerShields[opponent]) {
+                            playerShields[opponent] = false; updateShieldVisual(opponent);
+                            showPopup('درع الخصم!', `لقد حاول فريقك عرقلة الخصم، ولكن درعه أنقذه!`, '', 'event');
+                            await new Promise(r => setTimeout(r, 2500));
+                        } else {
+                            if(finalEvent.id === 6) await movePlayerBy(opponent, -5);
+                            if(finalEvent.id === 7) await movePlayerBy(opponent, -10);
+                            if(finalEvent.id === 13) { playerPositions[opponent] = 0; updatePlayerPosition(opponent); }
+                            movedPlayer = opponent;
+                        }
+                        break;
                 }
                 if (movedPlayer) { await checkAndTriggerEvent(movedPlayer); }
             }
             resultPopup.style.display = 'none';
-            if (await checkWinCondition(player) || await checkWinCondition(getOpponent(player))) return;
+            if (await checkWinCondition(player) || await checkWinCondition(opponent)) return;
             
             if (needsAnotherSpin) {
+                activePlayer = player; // Ensure the same player spins again
                 promptToSpin();
+                // isActionInProgress is left true until the next spin
             } else {
                 isActionInProgress = false;
             }
@@ -442,7 +458,7 @@
 
         async function checkAndTriggerEvent(player) {
             const currentPos = playerPositions[player];
-            if (squareEvents[currentPos] && !isActionInProgress) {
+            if (squareEvents[currentPos]) {
                 const eventToTrigger = squareEvents[currentPos];
                 delete squareEvents[currentPos]; updateAllVisuals();
                 await triggerEvent(player, eventToTrigger);
@@ -451,21 +467,24 @@
         
         async function applyWheelResult(result) {
             isActionInProgress = true;
-            let moves = parseInt(result);
-            if (playerFlags[activePlayer]?.doubleNextSpin && moves > 0) {
-                moves *= 2; delete playerFlags[activePlayer].doubleNextSpin;
+            try {
+                let moves = parseInt(result);
+                if (playerFlags[activePlayer]?.doubleNextSpin && moves > 0) {
+                    moves *= 2; delete playerFlags[activePlayer].doubleNextSpin;
+                }
+                if (playerFlags[activePlayer]?.reverseNextSpin) {
+                    moves *= -1; delete playerFlags[activePlayer].reverseNextSpin;
+                }
+                showPopup(`فريق ${activePlayer === 1 ? 'الشباب' : 'البنات'}`, '', `${moves > 0 ? '+' : ''}${moves}`, moves > 0 ? 'positive' : 'negative');
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                resultPopup.style.display = 'none';
+                await movePlayerBy(activePlayer, moves);
+                if (await checkWinCondition(activePlayer)) return;
+                await checkKnockBack(activePlayer);
+                await checkAndTriggerEvent(activePlayer);
+            } finally {
+                isActionInProgress = false;
             }
-            if (playerFlags[activePlayer]?.reverseNextSpin) {
-                moves *= -1; delete playerFlags[activePlayer].reverseNextSpin;
-            }
-            showPopup(`فريق ${activePlayer === 1 ? 'الشباب' : 'البنات'}`, '', `${moves > 0 ? '+' : ''}${moves}`, moves > 0 ? 'positive' : 'negative');
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            resultPopup.style.display = 'none';
-            await movePlayerBy(activePlayer, moves);
-            if (await checkWinCondition(activePlayer)) return;
-            await checkKnockBack(activePlayer);
-            await checkAndTriggerEvent(activePlayer);
-            isActionInProgress = false;
         }
 
         async function handleAdminAction(e) {
@@ -474,10 +493,11 @@
             const currentBtn = e.currentTarget;
             const needsTeam = !['admin-swap-btn'].includes(currentBtn.id);
             let player;
+            
             try {
                 if (needsTeam) {
                     player = await selectTeam();
-                    if (!player) { isActionInProgress = false; return; }
+                    if (!player) return;
                 }
                 saveState();
                 
@@ -485,21 +505,24 @@
                     case 'manual-move-btn':
                         currentBtn.classList.add('active');
                         board.classList.add('active-manual-move');
-                        const clickHandler = async (e) => {
-                            const sq = e.target.closest('.square');
-                            if (sq) {
-                                const squareId = sq.id === 'start-square' ? 0 : parseInt(sq.id.split('-')[1]);
-                                playerPositions[player] = squareId;
-                                updatePlayerPosition(player, true);
-                                await checkAndTriggerEvent(player);
-                                await checkWinCondition(player);
+                        const clickHandler = async (ev) => {
+                            const sq = ev.target.closest('.square');
+                            try {
+                                if (sq) {
+                                    const squareId = sq.id === 'start-square' ? 0 : parseInt(sq.id.split('-')[1]);
+                                    playerPositions[player] = squareId;
+                                    updatePlayerPosition(player, true);
+                                    await checkAndTriggerEvent(player);
+                                    await checkWinCondition(player);
+                                }
+                            } finally {
+                                currentBtn.classList.remove('active');
+                                board.classList.remove('active-manual-move');
+                                isActionInProgress = false; // Release the lock HERE
                             }
-                            currentBtn.classList.remove('active');
-                            board.classList.remove('active-manual-move');
-                            board.removeEventListener('click', clickHandler);
                         };
                         board.addEventListener('click', clickHandler, { once: true });
-                        break;
+                        return; // Exit function to keep lock active until click
                     case 'admin-shield-btn':
                         playerShields[player] = true; updateShieldVisual(player);
                         showPopup('تم!', `تم تفعيل الدرع لفريق ${player === 1 ? 'الشباب' : 'البنات'}.`, '', 'event');
@@ -529,6 +552,7 @@
                         break;
                 }
             } finally {
+                // The lock is released here for all buttons except manual move
                 if (currentBtn.id !== 'manual-move-btn') {
                     isActionInProgress = false;
                 }
@@ -537,20 +561,22 @@
 
         spinTrigger.addEventListener('click', async () => {
             if (isActionInProgress) return;
-            isActionInProgress = true;
             try {
+                isActionInProgress = true;
                 const chosenPlayer = await selectTeam();
-                if (!chosenPlayer) return;
+                if (!chosenPlayer) { isActionInProgress = false; return; }
                 saveState(); activePlayer = chosenPlayer;
                 promptToSpin();
-            } finally {
+                // isActionInProgress is left true until the wheel spin is complete
+            } catch(e) {
+                console.error(e);
                 isActionInProgress = false;
             }
         });
 
-        spinWheel.addEventListener('click', async function spinHandler() {
-            if (isActionInProgress || !spinWheel.classList.contains('ready-to-spin')) return;
-            isActionInProgress = true; spinWheel.classList.remove('ready-to-spin');
+        spinWheel.addEventListener('click', function spinHandler() {
+            if (!spinWheel.classList.contains('ready-to-spin')) return;
+            spinWheel.classList.remove('ready-to-spin');
             const targetIndex = Math.floor(Math.random() * wheelChoices.length);
             const segmentAngle = 360 / wheelChoices.length;
             const stopAngle = (targetIndex * segmentAngle) + (segmentAngle / 2);
@@ -566,9 +592,7 @@
         
         undoBtn.addEventListener('click', restoreState);
         resultPopup.addEventListener('click', () => { if(!isActionInProgress) resultPopup.style.display = 'none'; });
-        winScreen.addEventListener('click', () => {
-            setupGame();
-        });
+        winScreen.addEventListener('click', () => { setupGame(); });
         document.querySelectorAll('.admin-btn:not(#admin-undo-btn)').forEach(btn => btn.addEventListener('click', handleAdminAction));
 
         setupGame();
