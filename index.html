@@ -281,19 +281,44 @@
                 if (sqEl) sqEl.classList.add('event-square');
             }
         }
-        function drawWheel() {
-            spinWheel.innerHTML = ''; const segmentAngle = 360 / wheelChoices.length;
-            const colors = ['#00a8e8', '#ff6f61', '#90ee90', '#f7b733', '#87ceeb', '#ff8c94', '#a0e6a0', '#ffd700'];
-            let conicGradient = 'conic-gradient(';
-            wheelChoices.forEach((_, i) => { conicGradient += `${colors[i % colors.length]} ${i * segmentAngle}deg ${(i + 1) * segmentAngle}deg, `; });
-            conicGradient = conicGradient.slice(0, -2) + ')'; spinWheel.style.background = conicGradient;
-            wheelChoices.forEach((choice, i) => {
-                const segment = document.createElement('div'); segment.className = 'wheel-segment';
-                const textSpan = document.createElement('span'); textSpan.textContent = choice;
-                textSpan.style.transform = `rotate(${segmentAngle / 2}deg) translateY(-150%)`;
-                segment.appendChild(textSpan); segment.style.transform = `rotate(${i * segmentAngle}deg)`;
-                spinWheel.appendChild(segment);
-            });
+                function createBoard() {
+            board.innerHTML = ''; // This is the ONLY time we clear the board.
+            let squares = [];
+            for (let i = 1; i <= totalSquares; i++) {
+                const square = document.createElement('div');
+                square.className = 'square';
+                square.id = `square-${i}`;
+                const numberSpan = document.createElement('span');
+                numberSpan.className = 'number';
+                if (i === totalSquares) {
+                    square.classList.add('finish');
+                    numberSpan.textContent = '🏆';
+                } else {
+                    numberSpan.textContent = i;
+                }
+                square.appendChild(numberSpan);
+                squares.push(square);
+            }
+            squares.reverse();
+            let startSquare = document.createElement('div');
+            startSquare.className = 'square';
+            startSquare.id = 'start-square';
+            startSquare.textContent = 'انطلاق';
+            
+            const emptyCells = 5 - (squares.length % 5);
+            if (emptyCells < 5) {
+                for (let i = 0; i < emptyCells; i++) {
+                    const div = document.createElement('div');
+                    div.style.background = 'transparent';
+                    div.style.border = 'none';
+                    squares.push(div);
+                }
+            }
+            squares.push(startSquare);
+            
+            // The faulty line that cleared the board was here. It has been removed.
+            
+            squares.forEach(sq => board.appendChild(sq));
         }
         function showPopup(title, text, value = '', typeClass = 'event') {
             playSound('popup_show');
