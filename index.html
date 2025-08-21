@@ -659,4 +659,30 @@
             if (isActionInProgress || !spinWheel.classList.contains('ready-to-spin')) return;
             playSound('wheel_spin');
             spinWheel.classList.remove('ready-to-spin');
-            const targetIndex = Math.floor(Math.random() *
+            const targetIndex = Math.floor(Math.random() * wheelChoices.length);
+            const segmentAngle = 360 / wheelChoices.length;
+            const stopAngle = (targetIndex * segmentAngle) + (segmentAngle / 2);
+            currentRotation += (360 * 5) - (currentRotation % 360) - stopAngle;
+            spinWheel.style.transform = `rotate(${currentRotation}deg)`;
+            
+            spinWheel.addEventListener('transitionend', async () => {
+                sounds.wheel_spin.pause(); 
+                sounds.wheel_spin.currentTime = 0; 
+                playSound('wheel_stop');
+                const resultValue = wheelChoices[targetIndex];
+                wheelModal.style.display = 'none';
+                await applyWheelResult(resultValue);
+            }, { once: true });
+        });
+
+        
+        undoBtn.addEventListener('click', restoreState);
+        resultPopup.addEventListener('click', () => { if(!isActionInProgress) { playSound('popup_hide'); resultPopup.style.display = 'none'; } });
+        winScreen.addEventListener('click', () => { playSound('ui_click'); winScreen.style.display = 'none'; winScreen.querySelectorAll('.firework').forEach(el => el.remove()); setupGame(); });
+        document.querySelectorAll('.admin-btn:not(#admin-undo-btn)').forEach(btn => btn.addEventListener('click', handleAdminAction));
+
+        setupGame();
+    });
+    </script>
+</body>
+</html>
